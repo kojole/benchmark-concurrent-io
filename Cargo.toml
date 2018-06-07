@@ -1,0 +1,10 @@
+[package]
+name = "conio"
+version = "0.1.0"
+authors = ["Yuichi Tanikawa <kojole.jp@gmail.com>"]
+
+[dependencies]
+docopt = "1"
+libc = "0.2"
+serde = "1.0"
+serde_derive = "1.0"
