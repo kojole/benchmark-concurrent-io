@@ -1,15 +1,15 @@
 use std::cmp;
-use std::fs::{File, OpenOptions};
+use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::ops::Range;
 use std::path::Path;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use file::num_segments;
+use file::{num_segments, open};
 use segment::{Segment, SEGMENT_SIZE};
 
-pub fn read(path: String, use_direct: bool, num_threads: u8) -> io::Result<(Duration, u64)> {
+pub fn read(path: String, direct: bool, num_threads: u8) -> io::Result<(Duration, u64)> {
     let start = Instant::now();
 
     let num_segments = num_segments(&path)?;
@@ -27,7 +27,7 @@ pub fn read(path: String, use_direct: bool, num_threads: u8) -> io::Result<(Dura
         let path = path.clone();
         let t = thread::spawn(move || {
             let end_segment = cmp::min(start_segment + count, num_segments);
-            let mut reader = Reader::new(path, use_direct, start_segment, end_segment)?;
+            let mut reader = Reader::new(path, direct, start_segment, end_segment)?;
             reader.start()
         });
         handlers.push(t);
@@ -48,14 +48,12 @@ struct Reader {
 }
 
 impl Reader {
-    fn new<P>(path: P, use_direct: bool, start_segment: u32, end_segment: u32) -> io::Result<Reader>
+    fn new<P>(path: P, direct: bool, start_segment: u32, end_segment: u32) -> io::Result<Reader>
     where
         P: AsRef<Path>,
     {
-        let file = OpenOptions::new().read(true).open(path)?;
-
         Ok(Reader {
-            file,
+            file: open(path, false, direct)?,
             range: start_segment..end_segment,
         })
     }

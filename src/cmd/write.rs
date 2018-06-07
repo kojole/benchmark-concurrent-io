@@ -1,15 +1,15 @@
 use std::cmp;
-use std::fs::{File, OpenOptions};
+use std::fs::File;
 use std::io::{self, Seek, SeekFrom, Write};
 use std::ops::Range;
 use std::path::Path;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use file::num_segments;
+use file::{num_segments, open};
 use segment::{Segment, SEGMENT_SIZE};
 
-pub fn write(path: String, use_direct: bool, num_threads: u8) -> io::Result<Duration> {
+pub fn write(path: String, direct: bool, num_threads: u8) -> io::Result<Duration> {
     let start = Instant::now();
 
     let num_segments = num_segments(&path)?;
@@ -27,7 +27,7 @@ pub fn write(path: String, use_direct: bool, num_threads: u8) -> io::Result<Dura
         let path = path.clone();
         let t = thread::spawn(move || {
             let end_segment = cmp::min(start_segment + count, num_segments);
-            let mut writer = Writer::new(path, use_direct, start_segment, end_segment)?;
+            let mut writer = Writer::new(path, direct, start_segment, end_segment)?;
             writer.start()
         });
         handlers.push(t);
@@ -46,14 +46,12 @@ struct Writer {
 }
 
 impl Writer {
-    fn new<P>(path: P, use_direct: bool, start_segment: u32, end_segment: u32) -> io::Result<Writer>
+    fn new<P>(path: P, direct: bool, start_segment: u32, end_segment: u32) -> io::Result<Writer>
     where
         P: AsRef<Path>,
     {
-        let file = OpenOptions::new().write(true).open(path)?;
-
         Ok(Writer {
-            file,
+            file: open(path, true, direct)?,
             range: start_segment..end_segment,
         })
     }
